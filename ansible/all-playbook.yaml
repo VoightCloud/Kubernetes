@@ -1,0 +1,95 @@
+- name: Update apt sources if aarch64
+  become: true
+  copy: src=files/pi-sources.list dest=/etc/apt/sources.list
+  when: ansible_architecture == "aarch64"
+
+- name: Update apt sources if x86_64
+  become: true
+  copy: src=files/x86-sources.list dest=/etc/apt/sources.list
+  when: ansible_architecture == "x86_64"
+
+- name: Install docker.io
+  become: true
+  apt: name=docker.io update_cache=yes
+
+- name: Enable docker
+  become: true
+  service: name=docker state=restarted
+
+- name: Install curl
+  become: true
+  apt: name=curl
+
+- name: Install software properties common
+  become: true
+  apt: name=software-properties-common
+
+- name: Remove swapfile from /etc/fstab
+  become: true
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  become: true
+  command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Update ip forwarding
+  become: true
+  replace:
+    path: /etc/sysctl.conf
+    regexp: '^#net.ipv4.ip_forward=1$'
+    replace: 'net.ipv4.ip_forward=1'
+
+- name: Update bridge ip6tables
+  become: true
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '^net.bridge.bridge-nf-call-ip6tables=1'
+    insertafter: '^net.ipv4.ip_forward=1$'
+    line: 'net.bridge.bridge-nf-call-ip6tables=1'
+
+- name: Update bridge ip4tables
+  become: true
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '^net.bridge.bridge-nf-call-iptables=1$'
+    insertafter: '^net.bridge.bridge-nf-call-ip6tables=1$'
+    line: 'net.bridge.bridge-nf-call-iptables=1'
+
+- name: Add kubernetes key
+  become: true
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+- name: Add kubernetes repo
+  become: true
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list
+
+- name: Install Kubernetes binaries
+  become: true
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+      - kubelet
+      - kubeadm
+      - kubectl
+      - net-tools
+
+- name: Restart kubelet
+  become: true
+  service:
+    name: kubelet
+    daemon_reload: yes
+    state: restarted

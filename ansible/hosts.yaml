@@ -1,0 +1,15 @@
+all:
+  children:
+    knodes:
+      hosts:
+        kpi1:
+        kpi[3:7]:
+        ugli:
+          ansible_ssh_user: jeff
+        pepper:
+          ansible_ssh_user: jeff
+    kontrolplane:
+      hosts:
+        kpi2
+  vars:
+    ansible_ssh_user: ubuntu
