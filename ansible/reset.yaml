@@ -1,5 +1,4 @@
-# You would run this on the Kubernetes Raspberry Pi Control Plane
-# Important: Run this first!
+# Important: Don't run this unless you want to delete your entire cluster!
 
 - name: Reset All Nodes and Control Plane
   hosts: all
@@ -39,38 +38,18 @@
         path: /etc/cni/
         state: absent
 
+# This part stands alone because I'm usually working on ugli and I like to reboot it myself
 - name: Reboot Raspberry Pi and pepper
   hosts: kpi1:kpi3:kpi4:kpi5:kpi6:kpi7:pepper
   become: true
   tasks:
-    - name: Reboot RPis
+    - name: Reboot Nodes
       ignore_errors: true
       ignore_unreachable: true
-      command: reboot
+          command: reboot
 
-- name: Reset All Control Plane Extra Steps
-  hosts: kontrolplane
-  become: True
+- name: Warn user to reboot their machine
+  hosts: ugli
   tasks:
-    - name: Remove charts
-      file:
-        path: /home/ubuntu/charts
-        state: absent
-
-    - name: Remove privateKube
-      file:
-        path: /home/ubuntu/privateKube
-        state: absent
-
-    - name: Remove .kube directory
-      file:
-        path: /home/ubuntu/.kube
-        state: absent
-
-    - name: Remove certs directory
-      file:
-        path: /home/ubuntu/certs
-        state: absent
-
-    - name: Reboot Control Plane
-      command: reboot
+    - name: Warn user
+      command: echo "Don't forget to reboot!"

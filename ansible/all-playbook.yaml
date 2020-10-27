@@ -1,3 +1,4 @@
+# This file is meant to be run as a sub-module. Do not run this playbook as standalone.
 - name: Update apt sources if aarch64
   become: true
   copy: src=files/pi-sources.list dest=/etc/apt/sources.list

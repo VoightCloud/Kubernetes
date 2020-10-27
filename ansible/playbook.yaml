@@ -2,7 +2,7 @@
 # Important: Run this first!
 
 - name: Initialize Kubernetes Control Plane
-  hosts: kontrolplane
+  hosts: controlplane
   tasks:
     - name: Common Tasks
       include_tasks: all-playbook.yaml
@@ -28,28 +28,6 @@
         owner: ubuntu
         group: ubuntu
         mode: '0700'
-
-    - name: Copy charts to control plane
-      copy:
-        src: ../charts
-        dest: /home/ubuntu
-        owner: ubuntu
-        group: ubuntu
-
-    - name: Copy Private Values to control plane
-      copy:
-        src: ../privateKube
-        dest: /home/ubuntu
-        owner: ubuntu
-        group: ubuntu
-
-    - name: Copy certificates
-      copy:
-        src: /home/jeff/certs
-        dest: /home/ubuntu
-        owner: ubuntu
-        group: ubuntu
-        mode: 0600
 
     - name: Get Helm
       become: true
@@ -140,12 +118,57 @@
     - name: Update helm repos
       command: helm repo update
 
-# We do these here because everything needs the networking layer to be in place.
     - name: Install flannel
       command: "{{ item }}"
       with_items:
-        - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml -f ~/privateKube/flannel-values.yaml
+        - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml -f ../flannel-values.yaml
         - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
 
     - name: Install Metal-LB
       command: helm install -n default metallb stable/metallb -f ~/privateKube/metallb-values.yaml
+
+    - name: Install namespaces
+      command: kubectl apply -f ../namespaces.yaml
+
+- name: Collect necessary data from control plane
+  hosts: controlplane
+  become: True
+  gather_facts: no
+  tasks:
+    - name: Generate join command
+      command: kubeadm token create --print-join-command
+      register: join_command
+
+    - name: Copy join command to local file
+      become: false
+      local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
+
+- name: Initialize Kubernetes Nodes
+  hosts: workers
+  become: True
+  tasks:
+    - name: Common Tasks
+      include_tasks: all-playbook.yaml
+
+    - name: Copy the join command to server location
+      copy: src=join-command dest=/tmp/join-command.sh mode=0755
+
+    - name: Join the node to cluster
+      command: sh /tmp/join-command.sh
+
+    - name: Add www group
+      become: true
+      group:
+        name: www-data
+        state: present
+        gid: 33
+
+    - name: Add Kubernetes user
+      become: true
+      user:
+        name: kubernetes
+        comment: Kubernetes User
+        uid: 1050
+        groups: docker,www-data
+        append: yes
+
