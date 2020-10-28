@@ -21,7 +21,7 @@ me a few seconds when I'm resetting and rebuilding my cluster during development
 ##To run, use the following command:
 ```shell script
 cd ansible
-ansible-playbook playbook.yaml
+ansible-playbook --vault-password-file ~/secret.txt playbook.yaml
 ```
 
 ###To reset your Kubernetes cluster, (hopefully you don't need to do this often), you can use the following command:
