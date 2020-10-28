@@ -38,18 +38,9 @@
         path: /etc/cni/
         state: absent
 
-# This part stands alone because I'm usually working on ugli and I like to reboot it myself
-- name: Reboot Raspberry Pi and pepper
-  hosts: kpi1:kpi3:kpi4:kpi5:kpi6:kpi7:pepper
-  become: true
-  tasks:
-    - name: Reboot Nodes
-      ignore_errors: true
-      ignore_unreachable: true
-          command: reboot
-
-- name: Warn user to reboot their machine
-  hosts: ugli
-  tasks:
-    - name: Warn user
-      command: echo "Don't forget to reboot!"
+    - name: Reboot Raspberry Pi and pepper
+      tasks:
+        - name: Reboot Nodes
+          ignore_errors: true
+          ignore_unreachable: true
+              command: reboot

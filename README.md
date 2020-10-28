@@ -4,7 +4,7 @@
 This is intended to run on a combination of Raspberry Pi and x86 nodes.
 
 This piece sets the stage by installing the master node, flannel network, metal lb load balancer, and
-the nfs-client-provisioner helm charts. It also establishes the devops, blue, green, monitoring namespaces.
+the nfs-client-provisioner helm charts. 
 
 It then joins the worker nodes.
 
