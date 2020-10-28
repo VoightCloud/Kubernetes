@@ -13,5 +13,4 @@ metadata:
   name: site-ca
 type: Opaque
 data:
-  tls.crt: {{ .Values.ca.crt | b64enc }}
-  tls.key: {{ .Values.ca.key | b64enc }}
+  ca.crt: {{ .Values.ca.crt | b64enc }}

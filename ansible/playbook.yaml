@@ -94,7 +94,6 @@
         --set-file tls.crt=./files/voight.org.crt
         --set tls.key='{{ voightorgcrt }}'
         --set-file ca.crt=./files/ca.crt
-        --set ca.key='{{ voightcakey }}'
 
     - name: Collect necessary data from control plane
       become: True
