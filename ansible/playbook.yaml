@@ -3,6 +3,9 @@
 
 - name: Initialize Kubernetes Control Plane
   hosts: controlplane
+  vars_files:
+    - ./files/admin-values.yaml
+
   tasks:
     - name: Common Tasks
       include_tasks: all-playbook.yaml
@@ -84,6 +87,14 @@
 
     - name: Apply storage chart
       command: helm install storage-nas stable/nfs-client-provisioner  -f ~/privateKube/nas-values.yaml
+
+    - name: Add Voight.org Certificates
+      command: >
+        helm install certificates ../global
+        --set-file tls.crt=./files/voight.org.crt
+        --set tls.key='{{ voightorgcrt }}'
+        --set-file ca.crt=./files/ca.crt
+        --set ca.key='{{ voightcakey }}'
 
     - name: Collect necessary data from control plane
       become: True
