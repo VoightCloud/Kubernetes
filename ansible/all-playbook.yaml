@@ -1,29 +1,7 @@
-# This file is meant to be run as a sub-module. Do not run this playbook as standalone.
-- name: Update apt sources if aarch64
-  become: true
-  copy: src=files/pi-sources.list dest=/etc/apt/sources.list
-  when: ansible_architecture == "aarch64"
-
-- name: Update apt sources if x86_64
-  become: true
-  copy: src=files/x86-sources.list dest=/etc/apt/sources.list
-  when: ansible_architecture == "x86_64"
-
-- name: Install docker.io
-  become: true
-  apt: name=docker.io update_cache=yes
-
-- name: Enable docker
-  become: true
-  service: name=docker state=restarted
-
-- name: Install curl
-  become: true
-  apt: name=curl
-
-- name: Install software properties common
-  become: true
-  apt: name=software-properties-common
+- name: Install Software Packages
+  yum:
+    name: docker.io
+  update_cache: true
 
 - name: Remove swapfile from /etc/fstab
   become: true

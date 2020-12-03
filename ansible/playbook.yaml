@@ -11,22 +11,22 @@
       become: true
       command: kubeadm init --pod-network-cidr=100.64.0.0/16 --service-cidr=100.65.0.0/16
 
-    - name: Create .kube directory for ubuntu
+    - name: Create .kube directory for centos
       file:
-        path: /home/ubuntu/.kube
+        path: /home/centos/.kube
         state: directory
-        owner: ubuntu
-        group: ubuntu
+        owner: centos
+        group: centos
         mode: '0700'
 
     - name: Copy kubeconfig
       become: true
       copy:
         src: /etc/kubernetes/admin.conf
-        dest: /home/ubuntu/.kube/config
+        dest: /home/centos/.kube/config
         remote_src: yes
-        owner: ubuntu
-        group: ubuntu
+        owner: centos
+        group: centos
         mode: '0700'
 
     - name: Get Helm
