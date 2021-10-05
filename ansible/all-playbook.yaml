@@ -9,6 +9,21 @@
   copy: src=files/x86-sources.list dest=/etc/apt/sources.list
   when: ansible_architecture == "x86_64"
 
+- name: Determine if vm
+  command: "sh -c \"ip a|grep enp0s8\""
+  register: vm_addr
+  ignore_errors: true
+
+- name: Remove x86 default route
+  command: route del default
+  become: true
+  when: vm_addr.rc == 0
+
+- name: Update x86 default route
+  command: route add default gw 192.168.137.1 enp0s8
+  become: true
+  when: vm_addr.rc == 0
+
 - name: Install docker.io
   become: true
   apt: name=docker.io update_cache=yes
@@ -75,6 +90,10 @@
     state: present
     filename: kubernetes.list
 
+- name: Unmark hold packages for k8s
+  command: apt-mark unhold kubelet kubeadm kubectl
+  become: true
+
 - name: Install Kubernetes binaries
   become: true
   apt:
@@ -83,10 +102,26 @@
     update_cache: yes
   vars:
     packages:
-      - kubelet
-      - kubeadm
-      - kubectl
+      - kubelet=1.21.5-00
+      - kubeadm=1.21.5-00
+      - kubectl=1.21.5-00
       - net-tools
+
+- name: Don't allow k8s upgrades
+  command: apt-mark hold kubelet kubeadm kubectl
+  become: true
+
+- name: Gather local network address
+  command: "sh -c \"ip a|grep 192.168|cut -f6 -d' '|cut -f1 -d'/'\""
+  register: local_addr
+
+- name: Kubelet Extra Args
+  lineinfile:
+    path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    regexp: "node-ip="
+    line: 'Environment="KUBELET_EXTRA_ARGS=--node-ip={{ local_addr.stdout}}"'
+    insertafter: "Environment="
+  become: true
 
 - name: Restart kubelet
   become: true

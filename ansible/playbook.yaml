@@ -81,35 +81,65 @@
     - name: Update helm repos
       command: helm repo update
 
+    - name: Copy flannel-values.yaml
+      copy:
+        src: files/flannel-values.yaml
+        dest: /tmp/
+
+    - name: Copy metallb-values.yaml
+      copy:
+        src: files/metallb-values.yaml
+        dest: /tmp/
+
+    - name: Copy nas-values.yaml
+      copy:
+        src: files/nas-values.yaml
+        dest: /tmp/
+
+    - name: Copy global chart
+      copy:
+        src: files/global
+        dest: /tmp/
+
+    - name: Copy ca cert
+      copy:
+        src: files/ca.crt
+        dest: /tmp/
+
+    - name: Copy voight.org cert
+      copy:
+        src: files/voight.org.crt
+        dest: /tmp/
+
     - name: Install flannel
       command: "{{ item }}"
       with_items:
-        - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml -f ~/privateKube/flannel-values.yaml
-        - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
+        - kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml -f /tmp/flannel-values.yaml
+#        - kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
 
     - name: Install Metal-LB
-      command: helm install -n default metallb stable/metallb -f ~/privateKube/metallb-values.yaml
+      command: helm install -n default metallb stable/metallb -f /tmp/metallb-values.yaml
+
+    - name: Let k8s catch up
+      command: sleep 10
 
     - name: Apply storage chart
-      command: helm install storage-nas nfs-subdir-external-provisioner/nfs-subdir-external-provisioner  -f ~/privateKube/nas-values.yaml
+      command: helm install storage-nas nfs-subdir-external-provisioner/nfs-subdir-external-provisioner  -f /tmp/nas-values.yaml
 
     - name: Add Voight.org Certificates
       command: >
-        helm install certificates ../global
-        --set-file tls.crt=./files/voight.org.crt
-        --set tls.key='{{ voightorgcrt }}'
-        --set-file ca.crt=./files/ca.crt
+        helm install certificates /tmp/global
+        --set-file tls.crt=/tmp/voight.org.crt
+        --set tls.key='{{ voightorgkey }}'
+        --set-file ca.crt=/tmp/ca.crt
 
-    - name: Collect necessary data from control plane
-      become: True
-      tasks:
-        - name: Generate join command
-          command: kubeadm token create --print-join-command
-          register: join_command
+    - name: Generate join command
+      command: kubeadm token create --print-join-command
+      register: join_command
 
-        - name: Copy join command to local file
-          become: false
-          local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
+    - name: Copy join command to local file
+      become: false
+      local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
 
 - name: Initialize Kubernetes Nodes
   hosts: workers
@@ -121,10 +151,11 @@
     - name: Copy the join command to server location
       copy:
         src: join-command
-        dest: /tmp/join-command.sh mode=0755
+        dest: /tmp/
+        mode: 0755
 
     - name: Join the node to cluster
-      command: sh /tmp/join-command.sh
+      command: sh /tmp/join-command
 
     - name: Add www group
       become: true

@@ -38,9 +38,24 @@
         path: /etc/cni/
         state: absent
 
+    - name: Unmark hold packages for k8s
+      command: apt-mark unhold kubelet kubeadm kubectl
+      become: true
+
+    - name: Remove Kubernetes binaries
+      become: true
+      apt:
+        name: "{{ packages }}"
+        state: absent
+        update_cache: yes
+      vars:
+        packages:
+          - kubelet
+          - kubeadm
+          - kubectl
+
     - name: Reboot Raspberry Pi and pepper
-      tasks:
-        - name: Reboot Nodes
-          ignore_errors: true
-          ignore_unreachable: true
-              command: reboot
+      ignore_errors: true
+      ignore_unreachable: true
+      command: reboot
+
