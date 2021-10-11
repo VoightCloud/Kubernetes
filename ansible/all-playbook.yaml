@@ -115,6 +115,15 @@
   command: "sh -c \"ip a|grep 192.168|cut -f6 -d' '|cut -f1 -d'/'\""
   register: local_addr
 
+- name: Set docker cgroup
+  copy:
+    path: /etc/docker/daemon.json
+    contents: |
+      {
+        "exec-opts": ["native.cgroupdriver=systemd"]
+      }
+  become: true
+
 - name: Kubelet Extra Args
   lineinfile:
     path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf

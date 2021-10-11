@@ -4,7 +4,7 @@
 - name: Initialize Kubernetes Control Plane
   hosts: controlplane
   vars_files:
-    - ./files/admin-values.yaml
+#    - ../../HAProxy/ansible/admin-values.yaml
 
   tasks:
     - name: Common Tasks
@@ -96,21 +96,6 @@
         src: files/nas-values.yaml
         dest: /tmp/
 
-    - name: Copy global chart
-      copy:
-        src: files/global
-        dest: /tmp/
-
-    - name: Copy ca cert
-      copy:
-        src: files/ca.crt
-        dest: /tmp/
-
-    - name: Copy voight.org cert
-      copy:
-        src: files/voight.org.crt
-        dest: /tmp/
-
     - name: Install flannel
       command: "{{ item }}"
       with_items:
@@ -126,12 +111,7 @@
     - name: Apply storage chart
       command: helm install storage-nas nfs-subdir-external-provisioner/nfs-subdir-external-provisioner  -f /tmp/nas-values.yaml
 
-    - name: Add Voight.org Certificates
-      command: >
-        helm install certificates /tmp/global
-        --set-file tls.crt=/tmp/voight.org.crt
-        --set tls.key='{{ voightorgkey }}'
-        --set-file ca.crt=/tmp/ca.crt
+#
 
     - name: Generate join command
       command: kubeadm token create --print-join-command

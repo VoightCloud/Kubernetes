@@ -1,6 +1,0 @@
-tls:
-  cert: certificate
-  key: key
-ca:
-  cert: certificate
-  key: key
