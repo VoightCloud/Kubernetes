@@ -106,6 +106,8 @@
       - kubeadm=1.21.5-00
       - kubectl=1.21.5-00
       - net-tools
+      - nfs-common
+      - open-iscsi
 
 - name: Don't allow k8s upgrades
   command: apt-mark hold kubelet kubeadm kubectl
@@ -115,12 +117,24 @@
   command: "sh -c \"ip a|grep 192.168|cut -f6 -d' '|cut -f1 -d'/'\""
   register: local_addr
 
+- name: Copy CA certificate
+  copy:
+    src: files/voight-ca.crt
+    dest: /usr/local/share/ca-certificates/
+  become: true
+
+- name: Install CA certificate
+  command: update-ca-certificates
+  become: true
+
 - name: Set docker cgroup
   copy:
-    path: /etc/docker/daemon.json
-    contents: |
+    dest: /etc/docker/daemon.json
+    content: |
       {
-        "exec-opts": ["native.cgroupdriver=systemd"]
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "registry-mirrors" : ["https://nexus.voight.org:9043"],
+        "experimental" : true
       }
   become: true
 
