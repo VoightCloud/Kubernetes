@@ -14,27 +14,50 @@
   register: vm_addr
   ignore_errors: true
 
-- name: Remove x86 default route
-  command: route del default
-  become: true
-  when: vm_addr.rc == 0
+- block:
+  - name: Remove x86 default route
+    command: route del default
+    become: true
 
-- name: Update x86 default route
-  command: route add default gw 192.168.137.1 enp0s8
-  become: true
+  - name: Update x86 default route
+    command: route add default gw 192.168.137.1 enp0s8
+    become: true
   when: vm_addr.rc == 0
 
 - name: Install docker.io
   become: true
   apt: name=docker.io update_cache=yes
 
-- name: Enable docker
+- name: Don't allow k8s upgrades
+  command: apt-mark hold docker.io
   become: true
-  service: name=docker state=restarted
 
 - name: Install curl
   become: true
   apt: name=curl
+
+- name: Determine if GPU
+  command: "sh -c \"lspci|grep -i nvidia\""
+  register: is_gpu
+  ignore_errors: true
+
+- block:
+  - name: Install build-essentials
+    apt: name=build-essential
+    become: true
+
+  - name: Install dkms
+    apt: name=nvidia-dkms-470
+    become: true
+
+  - name: Install nvidia software
+    apt:
+      name:
+      - "nvidia-cuda-toolkit"
+      - "nvidia-headless-470"
+      - "nvidia-utils-470"
+    become: true
+  when: is_gpu.rc == 0
 
 - name: Install software properties common
   become: true
@@ -78,6 +101,71 @@
     insertafter: '^net.bridge.bridge-nf-call-ip6tables=1$'
     line: 'net.bridge.bridge-nf-call-iptables=1'
 
+- name: Update sshd_config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^UseDNS"
+    line: "UseDNS no"
+  become: true
+
+- name: Stop AppArmor
+  systemd:
+    name: apparmor
+    state: stopped
+  ignore_errors: true
+  become: true
+
+- name: Remove AppArmor
+  apt:
+    name:
+      - apparmor
+    state: absent
+  become: true
+
+- name: Install Software Packages
+  apt:
+    name:
+      - wget
+      - unzip
+      - curl
+      - software-properties-common
+      - net-tools
+      - ntp
+      - auditd
+      - audispd-plugins
+      - libopenscap8
+      - ssg-base
+      - ssg-debderived
+      - ssg-debian
+      - ssg-nondebian
+      - ssg-applications
+      - clamav
+      - clamav-daemon
+      - clamav-freshclam
+      - dkms
+    state: latest
+    update_cache: true
+  become: true
+
+- name: Enable auditd
+  systemd:
+    name: auditd
+    state: started
+    enabled: true
+  become: true
+
+- name: Create ubuntu home dir
+  file:
+    path: /home/ubuntu
+    state: directory
+  become: true
+
+- name: Unzip Security Guide
+  unarchive:
+    src: http://nexus.voight.org:8081/repository/STIG/STIG/rhel7/scap-security-guide-0.1.56.zip
+    dest: /home/ubuntu
+    remote_src: yes
+
 - name: Add kubernetes key
   become: true
   apt_key:
@@ -97,17 +185,15 @@
 - name: Install Kubernetes binaries
   become: true
   apt:
-    name: "{{ packages }}"
-    state: present
-    update_cache: yes
-  vars:
-    packages:
+    name:
       - kubelet=1.21.5-00
       - kubeadm=1.21.5-00
       - kubectl=1.21.5-00
       - net-tools
       - nfs-common
       - open-iscsi
+    state: present
+    update_cache: yes
 
 - name: Don't allow k8s upgrades
   command: apt-mark hold kubelet kubeadm kubectl
@@ -137,6 +223,54 @@
         "experimental" : true
       }
   become: true
+
+- name: Add nvidia key
+  become: true
+  apt_key:
+    url: https://nvidia.github.io/nvidia-docker/gpgkey
+
+- name: Download nvidia-docker.list
+  get_url:
+    url: https://nvidia.github.io/nvidia-docker/ubuntu20.04/nvidia-docker.list
+    dest: /etc/apt/sources.list.d/nvidia-docker.list
+    mode: '0640'
+  become: true
+
+- name: Add nvidia-docker
+  apt:
+    name:
+      nvidia-docker2
+  become: true
+  when: is_gpu.rc == 0
+
+- name: Don't allow k8s upgrades
+  command: apt-mark hold nvidia-docker2
+  become: true
+  when: is_gpu.rc == 0
+
+- name: Set docker cgroup
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "registry-mirrors" : ["https://nexus.voight.org:9043"],
+        "experimental" : true,
+        "default-runtime": "nvidia",
+        "default-shm-size": "2G",
+        "runtimes": {
+            "nvidia": {
+                "path": "nvidia-container-runtime",
+                "runtimeArgs": []
+            }
+        }
+      }
+  become: true
+  when: is_gpu.rc == 0
+
+- name: Enable docker
+  become: true
+  service: name=docker state=restarted daemon_reload=true
 
 - name: Kubelet Extra Args
   lineinfile:

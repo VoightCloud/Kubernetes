@@ -9,8 +9,11 @@ all:
         kpi[3:7]:
     x86nodes:
       hosts:
-        ugliv[0:11]:
+        ugliv[0:5]:
         pepper:
+    x86addnodes:
+      hosts:
+        ugliv[6:11]:
     workers:
       hosts:
         kpi1:
@@ -24,3 +27,4 @@ all:
         kpi2
   vars:
     ansible_ssh_user: ubuntu
+
