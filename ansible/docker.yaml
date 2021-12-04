@@ -1,0 +1,48 @@
+- name: Initialize Kubernetes Nodes
+  hosts: all
+  become: True
+  tasks:
+  - name: Install CA certificates
+    command: apt reinstall ca-certificates -y
+    become: true
+
+  - name: Copy Voight CA certificate
+    copy:
+      src: files/voight-ca.crt
+      dest: /usr/local/share/ca-certificates/
+    become: true
+
+  - name: Copy Voight CA certificate
+    copy:
+      src: files/voight-ca.pem
+      dest: /usr/local/share/ca-certificates/
+    become: true
+
+  - name: Install CA certificate
+    command: update-ca-certificates
+    become: true
+
+  - name: Set docker cgroup
+    copy:
+      dest: /etc/docker/daemon.json
+      content: |
+        {
+          "exec-opts": ["native.cgroupdriver=systemd"],
+          "registry-mirrors" : ["https://nexus.voight.org:9043"],
+          "experimental" : true
+        }
+    become: true
+
+  - name: Restart Docker
+    become: true
+    service:
+      name: docker
+      daemon_reload: yes
+      state: restarted
+
+  - name: Restart kubelet
+    become: true
+    service:
+      name: kubelet
+      daemon_reload: yes
+      state: restarted
