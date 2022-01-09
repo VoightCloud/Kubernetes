@@ -1,0 +1,60 @@
+- name: Add Hashicorp software
+  hosts: all
+  become: True
+  vars:
+    terraform_version: 1.1.2
+    terraform_url: https://releases.hashicorp.com/terraform
+
+  tasks:
+    - name: Update apt sources if aarch64
+      become: true
+      set_fact:
+        repo_arch: "[arch=arm64]"
+        terraform_zip: "terraform_{{ terraform_version }}_linux_arm64.zip"
+      when: ansible_architecture == "aarch64"
+
+    - name: Update apt sources if x86_64
+      become: true
+      set_fact:
+        repo_arch: "[arch=amd64]"
+        terraform_zip: "terraform_{{ terraform_version }}_linux_amd64.zip"
+      when: ansible_architecture == "x86_64"
+
+    - name: Add Hashicorp key
+      become: true
+      apt_key:
+        url: https://apt.releases.hashicorp.com/gpg
+
+    - name: Add Hashicorp repo
+      become: true
+      apt_repository:
+        repo: "deb {{ repo_arch }} https://apt.releases.hashicorp.com focal main"
+        state: present
+        filename: hashicorp
+
+    - name: Install Packer
+      become: true
+      apt:
+        name:
+          - packer
+
+    - name: Create packer plugin directory
+      file:
+        path: "{{ ansible_env.HOME }}/.packer.d/plugins"
+        state: directory
+
+    - name: Install Packer Proxmox plugin
+      copy: src=files/packer-plugin-proxmox.x86 dest="{{ ansible_env.HOME }}/.packer.d/plugins/"
+      when: ansible_architecture == "x86_64"
+
+    - name: Install Packer Proxmox plugin
+      copy: src=files/packer-plugin-proxmox.arm64 dest="{{ ansible_env.HOME }}/.packer.d/plugins/"
+      when: ansible_architecture == "aarch64"
+
+    - name: Unzip Security Guide
+      unarchive:
+        src: "{{ terraform_url }}/{{ terraform_version }}/{{ terraform_zip }}"
+        dest: /usr/local/bin/
+        remote_src: yes
+      become: yes
+
